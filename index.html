@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Phone Usage Tracker</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Phone Tracker">
+    <link rel="manifest" href="data:application/json,{%22name%22:%22Phone%20Tracker%22,%22short_name%22:%22Tracker%22,%22display%22:%22standalone%22,%22background_color%22:%22%23dbeafe%22,%22theme_color%22:%22%233b82f6%22}">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            min-height: 100vh;
+            padding: 1rem;
+            color: #f1f5f9;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { 
+            text-align: center; 
+            margin-bottom: 2rem;
+            animation: fadeIn 0.8s ease-out;
+        }
+        .header h1 { 
+            font-size: 2.5rem; 
+            background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        .header p { color: #94a3b8; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .grid { display: grid; gap: 1.5rem; margin-bottom: 2rem; }
+        .grid-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+        .grid-2 { grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); }
+        
+        .card { 
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 1rem; 
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            padding: 1.5rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 48px rgba(0,0,0,0.4);
+        }
+        
+        .stat-card { text-align: center; position: relative; overflow: hidden; }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(96, 165, 250, 0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .stat-icon { 
+            width: 4rem; height: 4rem; 
+            margin: 0 auto 1rem; 
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+        .phone-icon { 
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); 
+            color: white;
+        }
+        .phone-icon.over-goal { 
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        .clock-icon { 
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); 
+            color: white;
+        }
+        .target-icon { 
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); 
+            color: white;
+        }
+        
+        .stat-number { 
+            font-size: 2.5rem; 
+            font-weight: bold; 
+            color: #f1f5f9; 
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+        .stat-label { 
+            color: #94a3b8; 
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+        .stat-goal { 
+            font-size: 0.875rem; 
+            color: #64748b;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .btn { 
+            border: none; 
+            border-radius: 0.75rem; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        .btn:active::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .btn-primary { 
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white; 
+            padding: 1rem 1.5rem; 
+            width: 100%;
+            font-size: 1.125rem;
+            box-shadow: 0 4px 24px rgba(59, 130, 246, 0.4);
+        }
+        .btn-primary:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 32px rgba(59, 130, 246, 0.6);
+        }
+        
+        .quick-action-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .quick-btn {
+            background: rgba(51, 65, 85, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        .quick-btn:hover {
+            background: rgba(71, 85, 105, 0.8);
+            transform: translateY(-2px);
+        }
+        
+        .session-tracker {
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            text-align: center;
+        }
+        
+        .habit-patterns {
+            display: grid;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        
+        .pattern-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: rgba(51, 65, 85, 0.5);
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        .pattern-item:hover {
+            background: rgba(71, 85, 105, 0.7);
+        }
+        
+        .pattern-bar {
+            height: 8px;
+            background: rgba(148, 163, 184, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            flex: 1;
+            margin: 0 1rem;
+        }
+        .pattern-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+            transition: width 0.5s ease;
+        }
+        
+        .notification-prompt {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .timer-display { 
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace; 
+            font-size: 3rem; 
+            font-weight: bold; 
+            background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .data-sync-section {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .import-export-btns {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        h3 { 
+            font-size: 1.25rem; 
+            font-weight: 600; 
+            color: #e2e8f0; 
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 24px;
+            margin-left: auto;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #475569;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background-color: #3b82f6;
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+        
+        .insights-panel {
+            background: linear-gradient(135deg, rgba(251, 146, 60, 0.1) 0%, rgba(239, 68, 68, 0.1) 100%);
+            border: 1px solid rgba(251, 146, 60, 0.3);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+        
+        .insight-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+        }
+        .insight-icon {
+            font-size: 1.25rem;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-3, .grid-2 { grid-template-columns: 1fr; }
+            .quick-action-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Smart Phone Usage Tracker</h1>
+            <p>Building mindful habits with intelligent tracking</p>
+        </div>
+
+        <!-- Notification Permission Prompt -->
+        <div class="notification-prompt" id="notificationPrompt" style="display: none;">
+            <span>🔔</span>
+            <span>Enable notifications for hourly check-ins and usage reminders</span>
+            <button class="btn quick-btn" onclick="requestNotificationPermission()">Enable</button>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="grid grid-3">
+            <div class="card stat-card">
+                <div class="stat-icon phone-icon" id="phoneIcon">📱</div>
+                <div class="stat-number" id="pickupCount">0</div>
+                <div class="stat-label">Phone Pickups Today</div>
+                <div class="stat-goal">Goal: <span id="goalDisplay">30</span> or less</div>
+            </div>
+            
+            <div class="card stat-card">
+                <div class="stat-icon clock-icon">⏱️</div>
+                <div class="stat-number" id="totalScreenTime">0</div>
+                <div class="stat-label">Total Screen Time (min)</div>
+                <div class="stat-goal">Daily average: <span id="avgScreenTime">0</span> min</div>
+            </div>
+            
+            <div class="card stat-card">
+                <div class="stat-icon target-icon">🎯</div>
+                <div class="stat-number" id="focusTime">0:00</div>
+                <div class="stat-label">Focus Time Today</div>
+                <div class="stat-goal">Streak: <span id="focusStreak">0</span> days</div>
+            </div>
+        </div>
+
+        <!-- Main Actions -->
+        <div class="grid grid-2">
+            <!-- Smart Pickup Tracker -->
+            <div class="card">
+                <h3>📱 Smart Pickup Tracking</h3>
+                <button class="btn btn-primary" onclick="startSession()">
+                    Start Phone Session
+                </button>
+                <div class="session-tracker" id="sessionTracker" style="display: none;">
+                    <div>Session Active: <span id="sessionTime">0:00</span></div>
+                    <button class="btn quick-btn" onclick="endSession()" style="margin-top: 0.5rem;">End Session</button>
+                </div>
+                
+                <div class="quick-action-grid">
+                    <button class="btn quick-btn" onclick="quickPickup('check')">
+                        📲 Quick Check (< 1 min)
+                    </button>
+                    <button class="btn quick-btn" onclick="quickPickup('social')">
+                        💬 Social Media
+                    </button>
+                    <button class="btn quick-btn" onclick="quickPickup('work')">
+                        💼 Work/Productive
+                    </button>
+                    <button class="btn quick-btn" onclick="quickPickup('entertainment')">
+                        🎮 Entertainment
+                    </button>
+                </div>
+            </div>
+
+            <!-- Enhanced Focus Timer -->
+            <div class="card">
+                <h3>🎯 Focus Mode 
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="autoDetectToggle" onchange="toggleAutoDetect()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </h3>
+                <div class="timer-display" id="timerDisplay">0:00</div>
+                <div style="text-align: center; margin-bottom: 1rem;">
+                    <button class="btn btn-primary" id="focusBtn" onclick="toggleFocus()">
+                        Start Focus Session
+                    </button>
+                </div>
+                <p style="text-align: center; font-size: 0.875rem; color: #94a3b8;">
+                    Auto-detect: Tracks when tab is inactive
+                </p>
+            </div>
+        </div>
+
+        <!-- Habit Patterns -->
+        <div class="card">
+            <h3>📊 Usage Patterns</h3>
+            <div class="habit-patterns">
+                <div class="pattern-item">
+                    <span>Morning (6AM-12PM)</span>
+                    <div class="pattern-bar">
+                        <div class="pattern-fill" id="morningBar" style="width: 0%"></div>
+                    </div>
+                    <span id="morningCount">0</span>
+                </div>
+                <div class="pattern-item">
+                    <span>Afternoon (12PM-6PM)</span>
+                    <div class="pattern-bar">
+                        <div class="pattern-fill" id="afternoonBar" style="width: 0%"></div>
+                    </div>
+                    <span id="afternoonCount">0</span>
+                </div>
+                <div class="pattern-item">
+                    <span>Evening (6PM-12AM)</span>
+                    <div class="pattern-bar">
+                        <div class="pattern-fill" id="eveningBar" style="width: 0%"></div>
+                    </div>
+                    <span id="eveningCount">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Insights -->
+        <div class="card">
+            <h3>🤖 Smart Insights</h3>
+            <div class="insights-panel" id="insightsPanel">
+                <div class="insight-item">
+                    <span class="insight-icon">📈</span>
+                    <span>Start tracking to see personalized insights about your usage patterns</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Sync & Export -->
+        <div class="card data-sync-section">
+            <h3>🔄 Data Management</h3>
+            <p style="font-size: 0.875rem; color: #94a3b8; margin-bottom: 1rem;">
+                Your data is stored locally. Export regularly to maintain history.
+            </p>
+            <div class="import-export-btns">
+                <button class="btn quick-btn" onclick="exportData()">
+                    📤 Export Data (CSV)
+                </button>
+                <button class="btn quick-btn" onclick="importData()">
+                    📥 Import History
+                </button>
+                <button class="btn quick-btn" onclick="syncWithShortcuts()">
+                    🔗 iOS Shortcuts Guide
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Enhanced data structure
+        let appData = {
+            pickups: [],
+            sessions: [],
+            focusSessions: [],
+            patterns: { morning: 0, afternoon: 0, evening: 0 },
+            settings: {
+                dailyGoal: 30,
+                autoDetect: false,
+                notificationsEnabled: false
+            },
+            stats: {
+                totalDays: 1,
+                avgScreenTime: 0,
+                focusStreak: 0,
+                lastActiveDate: new Date().toDateString()
+            }
+        };
+
+        // Session tracking
+        let currentSession = null;
+        let sessionInterval = null;
+        let focusInterval = null;
+        let focusStartTime = null;
+        let pageLoadTime = Date.now();
+        let inactiveTime = 0;
+        let lastActivityTime = Date.now();
+
+        // Load saved data
+        function loadData() {
+            const saved = localStorage.getItem('phoneTrackerData');
+            if (saved) {
+                appData = { ...appData, ...JSON.parse(saved) };
+                updateAllDisplays();
+            }
+            
+            // Check if new day
+            const today = new Date().toDateString();
+            if (appData.stats.lastActiveDate !== today) {
+                startNewDay();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('phoneTrackerData', JSON.stringify(appData));
+        }
+
+        function startNewDay() {
+            const today = new Date().toDateString();
+            
+            // Calculate yesterday's average
+            const yesterdayTotal = appData.sessions.reduce((sum, s) => sum + s.duration, 0);
+            appData.stats.avgScreenTime = Math.round(
+                (appData.stats.avgScreenTime * (appData.stats.totalDays - 1) + yesterdayTotal) / 
+                appData.stats.totalDays
+            );
+            
+            // Reset daily data
+            appData.pickups = [];
+            appData.sessions = [];
+            appData.patterns = { morning: 0, afternoon: 0, evening: 0 };
+            appData.stats.totalDays++;
+            appData.stats.lastActiveDate = today;
+            
+            // Check focus streak
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const hadFocusYesterday = appData.focusSessions.some(s => 
+                new Date(s.date).toDateString() === yesterday.toDateString()
+            );
+            if (!hadFocusYesterday) {
+                appData.stats.focusStreak = 0;
+            }
+            
+            saveData();
+        }
+
+        function startSession() {
+            if (currentSession) return;
+            
+            currentSession = {
+                startTime: Date.now(),
+                type: 'manual',
+                category: null
+            };
+            
+            appData.pickups.push({
+                time: new Date().toISOString(),
+                type: 'manual'
+            });
+            
+            updateTimePattern();
+            
+            sessionInterval = setInterval(updateSessionDisplay, 1000);
+            document.getElementById('sessionTracker').style.display = 'block';
+            
+            updateAllDisplays();
+            saveData();
+        }
+
+        function endSession() {
+            if (!currentSession) return;
+            
+            const duration = Math.round((Date.now() - currentSession.startTime) / 60000); // minutes
+            appData.sessions.push({
+                ...currentSession,
+                endTime: Date.now(),
+                duration: duration
+            });
+            
+            currentSession = null;
+            clearInterval(sessionInterval);
+            document.getElementById('sessionTracker').style.display = 'none';
+            
+            updateAllDisplays();
+            generateInsights();
+            saveData();
+        }
+
+        function quickPickup(category) {
+            appData.pickups.push({
+                time: new Date().toISOString(),
+                type: 'quick',
+                category: category
+            });
+            
+            // Add estimated time based on category
+            const estimatedTimes = {
+                'check': 1,
+                'social': 15,
+                'work': 20,
+                'entertainment': 30
+            };
+            
+            appData.sessions.push({
+                startTime: Date.now(),
+                endTime: Date.now(),
+                duration: estimatedTimes[category] || 10,
+                category: category,
+                type: 'estimated'
+            });
+            
+            updateTimePattern();
+            updateAllDisplays();
+            generateInsights();
+            saveData();
+        }
+
+        function updateTimePattern() {
+            const hour = new Date().getHours();
+            if (hour >= 6 && hour < 12) {
+                appData.patterns.morning++;
+            } else if (hour >= 12 && hour < 18) {
+                appData.patterns.afternoon++;
+            } else if (hour >= 18 && hour < 24) {
+                appData.patterns.evening++;
+            }
+        }
+
+        function toggleFocus() {
+            if (focusStartTime) {
+                // End focus session
+                const duration = Math.round((Date.now() - focusStartTime) / 1000);
+                appData.focusSessions.push({
+                    date: new Date().toISOString(),
+                    duration: duration
+                });
+                
+                // Update streak
+                appData.stats.focusStreak++;
+                
+                focusStartTime = null;
+                clearInterval(focusInterval);
+                document.getElementById('focusBtn').textContent = 'Start Focus Session';
+                
+                saveData();
+            } else {
+                // Start focus session
+                focusStartTime = Date.now();
+                focusInterval = setInterval(updateFocusDisplay, 1000);
+                document.getElementById('focusBtn').textContent = 'End Focus Session';
+            }
+        }
+
+        function toggleAutoDetect() {
+            appData.settings.autoDetect = document.getElementById('autoDetectToggle').checked;
+            if (appData.settings.autoDetect) {
+                setupAutoDetection();
+            }
+            saveData();
+        }
+
+        function setupAutoDetection() {
+            // Track page visibility
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    inactiveTime = Date.now();
+                } else {
+                    if (inactiveTime && (Date.now() - inactiveTime) > 60000) {
+                        // Auto-log pickup if away for more than 1 minute
+                        appData.pickups.push({
+                            time: new Date().toISOString(),
+                            type: 'auto-detected'
+                        });
+                        updateAllDisplays();
+                        saveData();
+                    }
+                }
+            });
+            
+            // Track user activity
+            ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
+                document.addEventListener(event, () => {
+                    lastActivityTime = Date.now();
+                });
+            });
+        }
+
+        function requestNotificationPermission() {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        appData.settings.notificationsEnabled = true;
+                        document.getElementById('notificationPrompt').style.display = 'none';
+                        scheduleNotifications();
+                        saveData();
+                    }
+                });
+            }
+        }
+
+        function scheduleNotifications() {
+            // Schedule hourly check-ins
+            setInterval(() => {
+                if (appData.settings.notificationsEnabled) {
+                    new Notification('Phone Usage Check-in', {
+                        body: `${appData.pickups.length} pickups today. How's your focus?`,
+                        icon: '📱'
+                    });
+                }
+            }, 3600000); // Every hour
+        }
+
+        function generateInsights() {
+            const insights = [];
+            const pickupCount = appData.pickups.length;
+            const totalTime = appData.sessions.reduce((sum, s) => sum + s.duration, 0);
+            
+            // Pickup insights
+            if (pickupCount > appData.settings.dailyGoal) {
+                insights.push({
+                    icon: '⚠️',
+                    text: `You're ${pickupCount - appData.settings.dailyGoal} pickups over your daily goal`
+                });
+            } else {
+                insights.push({
+                    icon: '✅',
+                    text: `Great job! You're within your pickup goal`
+                });
+            }
+            
+            // Time pattern insights
+            const maxPattern = Math.max(...Object.values(appData.patterns));
+            const peakTime = Object.entries(appData.patterns).find(([_, v]) => v === maxPattern)?.[0];
+            if (peakTime && maxPattern > 0) {
+                insights.push({
+                    icon: '📊',
+                    text: `Most active in the ${peakTime} (${maxPattern} pickups)`
+                });
+            }
+            
+            // Screen time insights
+            if (totalTime > 180) {
+                insights.push({
+                    icon: '⏰',
+                    text: `Consider a digital detox - ${totalTime} minutes today`
+                });
+            }
+            
+            // Update insights panel
+            const panel = document.getElementById('insightsPanel');
+            panel.innerHTML = insights.map(insight => 
+                `<div class="insight-item">
+                    <span class="insight-icon">${insight.icon}</span>
+                    <span>${insight.text}</span>
+                </div>`
+            ).join('');
+        }
+
+        function updateSessionDisplay() {
+            if (!currentSession) return;
+            const elapsed = Math.round((Date.now() - currentSession.startTime) / 1000);
+            document.getElementById('sessionTime').textContent = formatTime(elapsed);
+        }
+
+        function updateFocusDisplay() {
+            if (!focusStartTime) return;
+            const elapsed = Math.round((Date.now() - focusStartTime) / 1000);
+            document.getElementById('focusTime').textContent = formatTime(elapsed);
+            document.getElementById('timerDisplay').textContent = formatTime(elapsed);
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateAllDisplays() {
+            // Update pickup count
+            document.getElementById('pickupCount').textContent = appData.pickups.length;
+            document.getElementById('goalDisplay').textContent = appData.settings.dailyGoal;
+            
+            // Update icon state
+            const isOverGoal = appData.pickups.length > appData.settings.dailyGoal;
+            document.getElementById('phoneIcon').className = isOverGoal ? 
+                'stat-icon phone-icon over-goal' : 'stat-icon phone-icon';
+            
+            // Update screen time
+            const totalTime = appData.sessions.reduce((sum, s) => sum + s.duration, 0);
+            document.getElementById('totalScreenTime').textContent = totalTime;
+            document.getElementById('avgScreenTime').textContent = appData.stats.avgScreenTime;
+            
+            // Update focus streak
+            document.getElementById('focusStreak').textContent = appData.stats.focusStreak;
+            
+            // Update patterns
+            const total = Object.values(appData.patterns).reduce((sum, v) => sum + v, 0) || 1;
+            document.getElementById('morningBar').style.width = `${(appData.patterns.morning / total) * 100}%`;
+            document.getElementById('afternoonBar').style.width = `${(appData.patterns.afternoon / total) * 100}%`;
+            document.getElementById('eveningBar').style.width = `${(appData.patterns.evening / total) * 100}%`;
+            document.getElementById('morningCount').textContent = appData.patterns.morning;
+            document.getElementById('afternoonCount').textContent = appData.patterns.afternoon;
+            document.getElementById('eveningCount').textContent = appData.patterns.evening;
+        }
+
+        function exportData() {
+            const csvData = generateCSV();
+            const blob = new Blob([csvData], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `phone-usage-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function generateCSV() {
+            let csv = 'Date,Time,Type,Category,Duration(min)\n';
+            
+            appData.sessions.forEach(session => {
+                const date = new Date(session.startTime);
+                csv += `${date.toLocaleDateString()},${date.toLocaleTimeString()},${session.type || 'manual'},${session.category || 'general'},${session.duration}\n`;
+            });
+            
+            return csv;
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json,.csv';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = event => {
+                    try {
+                        if (file.name.endsWith('.json')) {
+                            const imported = JSON.parse(event.target.result);
+                            appData = { ...appData, ...imported };
+                            saveData();
+                            updateAllDisplays();
+                            alert('Data imported successfully!');
+                        } else {
+                            alert('CSV import coming soon! For now, use JSON export/import.');
+                        }
+                    } catch (err) {
+                        alert('Error importing data: ' + err.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        function syncWithShortcuts() {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: #1e293b;
+                padding: 2rem;
+                border-radius: 1rem;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+                max-width: 500px;
+                z-index: 1000;
+            `;
+            modal.innerHTML = `
+                <h3 style="margin-bottom: 1rem;">📱 iOS Shortcuts Integration</h3>
+                <p style="color: #94a3b8; margin-bottom: 1rem;">Create automated tracking with iOS Shortcuts:</p>
+                <ol style="color: #cbd5e1; margin-left: 1.5rem; margin-bottom: 1rem;">
+                    <li>Open Shortcuts app</li>
+                    <li>Create automation for "When I open app"</li>
+                    <li>Add "Open URL" action</li>
+                    <li>Use this URL: <code style="background: #334155; padding: 0.25rem 0.5rem; border-radius: 0.25rem;">${window.location.origin}${window.location.pathname}?pickup=auto</code></li>
+                    <li>Enable "Run Immediately"</li>
+                </ol>
+                <p style="color: #94a3b8; margin-bottom: 1rem;">The tracker will auto-log when you return!</p>
+                <button onclick="this.parentElement.remove()" class="btn btn-primary">Got it!</button>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Check for URL parameters (for shortcuts integration)
+        function checkURLParams() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('pickup') === 'auto') {
+                appData.pickups.push({
+                    time: new Date().toISOString(),
+                    type: 'shortcut'
+                });
+                updateTimePattern();
+                updateAllDisplays();
+                saveData();
+                
+                // Clear the parameter
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            loadData();
+            checkURLParams();
+            
+            // Check for notification support
+            if ('Notification' in window && Notification.permission === 'default') {
+                document.getElementById('notificationPrompt').style.display = 'flex';
+            }
+            
+            // Setup auto-detection if enabled
+            if (appData.settings.autoDetect) {
+                document.getElementById('autoDetectToggle').checked = true;
+                setupAutoDetection();
+            }
+            
+            // Generate initial insights
+            generateInsights();
+        });
+
+        // Add service worker for offline support
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:text/javascript,' + encodeURIComponent(`
+                self.addEventListener('install', e => {
+                    e.waitUntil(
+                        caches.open('v1').then(cache => {
+                            return cache.addAll(['/']);
+                        })
+                    );
+                });
+                self.addEventListener('fetch', e => {
+                    e.respondWith(
+                        caches.match(e.request).then(response => {
+                            return response || fetch(e.request);
+                        })
+                    );
+                });
+            `));
+        }
+
+        // Export for JSON backup
+        window.exportJSON = function() {
+            const dataStr = JSON.stringify(appData, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `phone-tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+    </script>
+</body>
+</html>
